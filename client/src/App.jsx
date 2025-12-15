@@ -11,6 +11,8 @@ function App() {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const baseUrl = import.meta.env.BASE_URL || '/';
+
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [displayName, setDisplayName] = useState('Santa PFP');
   const [accentColor, setAccentColor] = useState('#ff365d');
@@ -48,7 +50,7 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/accessories.json')
+    fetch(`${baseUrl}accessories.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load accessories.json'))))
       .then((json) => {
         if (cancelled) return;
@@ -510,14 +512,14 @@ function App() {
               }}
               accessories={{
                 hat: hatAsset
-                  ? { src: `/${hatAsset}`, x: hatX, y: hatY, scale: hatScale, flipX: flipXByKind.hat }
+                  ? { src: `${baseUrl}${hatAsset}`, x: hatX, y: hatY, scale: hatScale, flipX: flipXByKind.hat }
                   : { src: null, x: hatX, y: hatY, scale: hatScale, flipX: flipXByKind.hat },
                 beard: beardAsset
-                  ? { src: `/${beardAsset}`, x: beardX, y: beardY, scale: beardScale, flipX: flipXByKind.beard }
+                  ? { src: `${baseUrl}${beardAsset}`, x: beardX, y: beardY, scale: beardScale, flipX: flipXByKind.beard }
                   : { src: null, x: beardX, y: beardY, scale: beardScale, flipX: flipXByKind.beard },
                 moustache: moustacheAsset
                   ? {
-                      src: `/${moustacheAsset}`,
+                      src: `${baseUrl}${moustacheAsset}`,
                       x: moustacheX,
                       y: moustacheY,
                       scale: moustacheScale,

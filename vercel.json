@@ -22,20 +22,8 @@
       "handle": "filesystem"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/client/assets/$1"
-    },
-    {
-      "src": "/favicon\\.svg",
-      "dest": "/client/favicon.svg"
-    },
-    {
-      "src": "/robots\\.txt",
-      "dest": "/client/robots.txt"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/client/index.html"
+      "dest": "/index.html"
     }
   ],
   "env": {
