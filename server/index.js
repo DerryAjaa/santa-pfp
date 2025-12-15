@@ -10,6 +10,12 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || 'dall-e-3';
 app.use(cors());
 app.use(express.json({ limit: '8mb' }));
 
+// Vercel may invoke this Serverless Function directly at `/server/index.js`.
+// Return a friendly response instead of a 404.
+app.get(['/server/index.js', '/'], (_req, res) => {
+  res.status(200).send('ok');
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', ready: Boolean(OPENAI_API_KEY) });
 });
