@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:5001'
+      '/api': `http://localhost:${Number(process.env.VITE_API_PORT || process.env.API_PORT || 5001)}`
     }
   }
 });

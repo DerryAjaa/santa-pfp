@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CanvasEditor from './components/CanvasEditor.jsx';
 import Snowfield from './components/Snowfield.jsx';
 
@@ -14,16 +14,30 @@ function App() {
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [displayName, setDisplayName] = useState('Santa PFP');
   const [accentColor, setAccentColor] = useState('#ff365d');
-  const [hatEnabled, setHatEnabled] = useState(true);
-  const [frostEdge, setFrostEdge] = useState(true);
-  const [glow, setGlow] = useState(true);
-  const [ring, setRing] = useState(true);
   const [scale, setScale] = useState(1.05);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(-6);
   const [hue, setHue] = useState(0);
   const [saturation, setSaturation] = useState(115);
-  const [badgeSubtitle, setBadgeSubtitle] = useState('North Pole drop');
+  const [badgeSubtitle, setBadgeSubtitle] = useState('Santa');
+
+  const [accessoryList, setAccessoryList] = useState({ hat: [], beard: [], moustache: [] });
+  const [hatAsset, setHatAsset] = useState('');
+  const [beardAsset, setBeardAsset] = useState('');
+  const [moustacheAsset, setMoustacheAsset] = useState('');
+
+  const [activeDragLayer, setActiveDragLayer] = useState('base');
+  const [layerOrder, setLayerOrder] = useState(['hat', 'moustache', 'beard']);
+  const [flipXByKind, setFlipXByKind] = useState({ hat: false, moustache: false, beard: false });
+  const [hatX, setHatX] = useState(0);
+  const [hatY, setHatY] = useState(-205);
+  const [hatScale, setHatScale] = useState(1);
+  const [beardX, setBeardX] = useState(0);
+  const [beardY, setBeardY] = useState(165);
+  const [beardScale, setBeardScale] = useState(1);
+  const [moustacheX, setMoustacheX] = useState(0);
+  const [moustacheY, setMoustacheY] = useState(40);
+  const [moustacheScale, setMoustacheScale] = useState(1);
 
   const [uploadedImage, setUploadedImage] = useState(null);
   const [aiImage, setAiImage] = useState(null);
@@ -31,6 +45,26 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const activeImage = useMemo(() => uploadedImage || aiImage, [uploadedImage, aiImage]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/accessories.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load accessories.json'))))
+      .then((json) => {
+        if (cancelled) return;
+        setAccessoryList({
+          hat: Array.isArray(json?.hat) ? json.hat : [],
+          beard: Array.isArray(json?.beard) ? json.beard : [],
+          moustache: Array.isArray(json?.moustache) ? json.moustache : []
+        });
+      })
+      .catch(() => {
+        // If the manifest is missing, keep empty lists.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleUpload = (file) => {
     if (!file) return;
@@ -78,6 +112,52 @@ function App() {
     link.click();
   };
 
+  const handleTweetCanvas = async () => {
+    const dataUrl = canvasRef.current?.exportImage();
+    if (!dataUrl) {
+      setStatus('No canvas image');
+      return;
+    }
+
+    const tweetText = 'Check my Santa PFP!';
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+
+    try {
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'santa-pfp.png', { type: 'image/png' });
+
+      // Best case (mobile / supported browsers): share the image directly.
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ text: tweetText, files: [file] });
+        setStatus('Shared');
+        return;
+      }
+
+      // Desktop fallback: copy image to clipboard so user can paste into tweet.
+      const ClipboardItemCtor = window.ClipboardItem;
+      if (ClipboardItemCtor && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItemCtor({ 'image/png': blob })]);
+        setStatus('Image copied — paste into tweet');
+        openLink(twitterUrl);
+        return;
+      }
+
+      // Last fallback: download the PNG and open compose.
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = 'santa-pfp.png';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setStatus('Downloaded — attach it to tweet');
+      openLink(twitterUrl);
+    } catch (error) {
+      console.error(error);
+      setStatus('Tweet failed');
+      openLink(twitterUrl);
+    }
+  };
+
   const handleCopyContract = async () => {
     try {
       await navigator.clipboard.writeText(defaultContract);
@@ -99,8 +179,72 @@ function App() {
     setScale(1.05);
     setOffsetX(0);
     setOffsetY(-6);
+    setHatX(0);
+    setHatY(-205);
+    setHatScale(1);
+    setBeardX(0);
+    setBeardY(165);
+    setBeardScale(1);
+    setMoustacheX(0);
+    setMoustacheY(40);
+    setMoustacheScale(1);
+    setActiveDragLayer('base');
+    setLayerOrder(['hat', 'moustache', 'beard']);
+    setFlipXByKind({ hat: false, moustache: false, beard: false });
     setStatus('Reset');
   };
+
+  const isAccessorySelected = activeDragLayer === 'hat' || activeDragLayer === 'beard' || activeDragLayer === 'moustache';
+  const selectedKind = isAccessorySelected ? activeDragLayer : null;
+
+  const removeSelected = () => {
+    if (!selectedKind) return;
+    if (selectedKind === 'hat') setHatAsset('');
+    if (selectedKind === 'beard') setBeardAsset('');
+    if (selectedKind === 'moustache') setMoustacheAsset('');
+    setActiveDragLayer('base');
+  };
+
+  const flipSelected = () => {
+    if (!selectedKind) return;
+    setFlipXByKind((prev) => ({ ...prev, [selectedKind]: !prev[selectedKind] }));
+  };
+
+  const sendBackward = () => {
+    if (!selectedKind) return;
+    setLayerOrder((prev) => {
+      const idx = prev.indexOf(selectedKind);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      const tmp = next[idx - 1];
+      next[idx - 1] = next[idx];
+      next[idx] = tmp;
+      return next;
+    });
+  };
+
+  const bringForward = () => {
+    if (!selectedKind) return;
+    setLayerOrder((prev) => {
+      const idx = prev.indexOf(selectedKind);
+      if (idx === -1 || idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      const tmp = next[idx + 1];
+      next[idx + 1] = next[idx];
+      next[idx] = tmp;
+      return next;
+    });
+  };
+
+  const canSendBackward = Boolean(selectedKind) && layerOrder.indexOf(selectedKind) > 0;
+  const canBringForward =
+    Boolean(selectedKind) && layerOrder.indexOf(selectedKind) !== -1 && layerOrder.indexOf(selectedKind) < layerOrder.length - 1;
+
+  const Icon = ({ children }) => (
+    <span className="btn-icon" aria-hidden="true">
+      {children}
+    </span>
+  );
 
   return (
     <div className="app-shell">
@@ -146,7 +290,7 @@ function App() {
               />
               <button className="btn secondary" onClick={resetCanvas}>Reset</button>
             </div>
-            <div className="hint">AI happens server-side, keep your API key in .env on the backend.</div>
+            <div className="hint">wait 1-2 minutes to load AI generated image.</div>
           </div>
 
           <div className="control-group">
@@ -249,33 +393,83 @@ function App() {
           </div>
 
           <div className="pill-row">
-            <button className={`pill ${hatEnabled ? 'active' : ''}`} onClick={() => setHatEnabled(!hatEnabled)}>
-              🎩 Santa hat
-            </button>
-            <button className={`pill ${glow ? 'active' : ''}`} onClick={() => setGlow(!glow)}>
-              ✨ Glow
-            </button>
-            <button className={`pill ${frostEdge ? 'active' : ''}`} onClick={() => setFrostEdge(!frostEdge)}>
-              ❄️ Frost rim
-            </button>
-            <button className={`pill ${ring ? 'active' : ''}`} onClick={() => setRing(!ring)}>
-              🪩 Halo ring
-            </button>
+            <select className="input accessory-select accessory-select-hat" value={hatAsset} onChange={(e) => setHatAsset(e.target.value)}>
+              <option value="">Hat: none</option>
+              {accessoryList.hat.map((p) => (
+                <option key={p} value={p}>
+                  {p.replace(/^hat\//, 'Hat: ')}
+                </option>
+              ))}
+            </select>
+            <select className="input accessory-select accessory-select-beard" value={beardAsset} onChange={(e) => setBeardAsset(e.target.value)}>
+              <option value="">Beard: none</option>
+              {accessoryList.beard.map((p) => (
+                <option key={p} value={p}>
+                  {p.replace(/^beard\//, 'Beard: ')}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input accessory-select accessory-select-moustache"
+              value={moustacheAsset}
+              onChange={(e) => setMoustacheAsset(e.target.value)}
+            >
+              <option value="">Moustache: none</option>
+              {accessoryList.moustache.map((p) => (
+                <option key={p} value={p}>
+                  {p.replace(/^moustache\//, 'Moustache: ')}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="hint" style={{ marginTop: 10 }}>
+            Resize
           </div>
 
           <div className="actions-row" style={{ marginTop: 14 }}>
-            <button className="btn" onClick={handleDownload}>Download PFP</button>
-            <button className="btn secondary" onClick={handleCopyContract}>Copy contract</button>
+            <button className="btn" onClick={handleDownload}>
+              <Icon>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <path d="M7 10l5 5 5-5" />
+                  <path d="M12 15V3" />
+                </svg>
+              </Icon>
+              Download PFP
+            </button>
+            <button className="btn secondary" onClick={handleCopyContract}>
+              <Icon>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              </Icon>
+              Copy contract
+            </button>
             <button
               className="btn secondary inline"
               onClick={() => openLink('https://twitter.com/intent/tweet?text=Minting%20my%20Santa%20PFP%20%23santapfp')}
             >
+              <Icon>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53A4.48 4.48 0 0 0 12 8.09V9a10.66 10.66 0 0 1-9-5s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z" />
+                </svg>
+              </Icon>
               Twitter share
             </button>
             <button
               className="btn secondary inline"
               onClick={() => openLink('https://dexscreener.com/')}
             >
+              <Icon>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6" />
+                  <path d="M6 13v6" />
+                  <path d="M10 9v10" />
+                  <path d="M14 5v14" />
+                </svg>
+              </Icon>
               Dexscreener
             </button>
           </div>
@@ -284,6 +478,20 @@ function App() {
 
         <div className="panel">
           <div className="label">Canvas</div>
+          <div className="editor-menu">
+            <button className="btn secondary inline" onClick={removeSelected} disabled={!selectedKind}>
+              Remove
+            </button>
+            <button className="btn secondary inline" onClick={flipSelected} disabled={!selectedKind}>
+              Flip
+            </button>
+            <button className="btn secondary inline" onClick={bringForward} disabled={!canBringForward}>
+              Bring Forward
+            </button>
+            <button className="btn secondary inline" onClick={sendBackward} disabled={!canSendBackward}>
+              Send Backward
+            </button>
+          </div>
           <div className="canvas-wrapper">
             <CanvasEditor
               ref={canvasRef}
@@ -292,24 +500,60 @@ function App() {
               baseImage={activeImage}
               overlayText={displayName}
               accentColor={accentColor}
-              hatEnabled={hatEnabled}
-              glow={glow}
-              frostEdge={frostEdge}
               scale={scale}
               offsetX={offsetX}
               offsetY={offsetY}
+              layerOrder={layerOrder}
+              onOffsetChange={(nextX, nextY) => {
+                setOffsetX(Math.round(nextX));
+                setOffsetY(Math.round(nextY));
+              }}
+              accessories={{
+                hat: hatAsset
+                  ? { src: `/${hatAsset}`, x: hatX, y: hatY, scale: hatScale, flipX: flipXByKind.hat }
+                  : { src: null, x: hatX, y: hatY, scale: hatScale, flipX: flipXByKind.hat },
+                beard: beardAsset
+                  ? { src: `/${beardAsset}`, x: beardX, y: beardY, scale: beardScale, flipX: flipXByKind.beard }
+                  : { src: null, x: beardX, y: beardY, scale: beardScale, flipX: flipXByKind.beard },
+                moustache: moustacheAsset
+                  ? {
+                      src: `/${moustacheAsset}`,
+                      x: moustacheX,
+                      y: moustacheY,
+                      scale: moustacheScale,
+                      flipX: flipXByKind.moustache
+                    }
+                  : {
+                      src: null,
+                      x: moustacheX,
+                      y: moustacheY,
+                      scale: moustacheScale,
+                      flipX: flipXByKind.moustache
+                    }
+              }}
+              activeLayer={activeDragLayer}
+              onActiveLayerChange={(layer) => setActiveDragLayer(layer)}
+              onAccessoryChange={(kind, next) => {
+                if (kind === 'hat') {
+                  if (Number.isFinite(next.x)) setHatX(Math.round(next.x));
+                  if (Number.isFinite(next.y)) setHatY(Math.round(next.y));
+                  if (Number.isFinite(next.scale)) setHatScale(next.scale);
+                }
+                if (kind === 'beard') {
+                  if (Number.isFinite(next.x)) setBeardX(Math.round(next.x));
+                  if (Number.isFinite(next.y)) setBeardY(Math.round(next.y));
+                  if (Number.isFinite(next.scale)) setBeardScale(next.scale);
+                }
+                if (kind === 'moustache') {
+                  if (Number.isFinite(next.x)) setMoustacheX(Math.round(next.x));
+                  if (Number.isFinite(next.y)) setMoustacheY(Math.round(next.y));
+                  if (Number.isFinite(next.scale)) setMoustacheScale(next.scale);
+                }
+              }}
               hue={hue}
               saturation={saturation}
-              ring={ring}
               badge={{ subtitle: badgeSubtitle }}
             />
-          </div>
-          <div className="canvas-toolbar">
-            <div className="status-chip">{activeImage ? 'Custom art loaded' : 'Waiting for art'}</div>
-            <button className="btn secondary inline" onClick={handleDownload}>Export PNG</button>
-            <button className="btn secondary inline" onClick={() => openLink('https://twitter.com/intent/tweet?text=Check%20my%20Santa%20PFP!')}>
-              Tweet it
-            </button>
           </div>
         </div>
       </div>

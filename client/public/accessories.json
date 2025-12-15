@@ -1,0 +1,32 @@
+{
+  "hat": [
+    "hat/hat1.png",
+    "hat/hat2.png",
+    "hat/hat3.png",
+    "hat/hat4.png",
+    "hat/hat5.png",
+    "hat/hat6.png",
+    "hat/hat7.png",
+    "hat/hat8.png"
+  ],
+  "beard": [
+    "beard/beard1.png",
+    "beard/beard2.png",
+    "beard/beard3.png",
+    "beard/beard4.png",
+    "beard/beard5.png",
+    "beard/beard6.png",
+    "beard/beard7.png",
+    "beard/beard8.png"
+  ],
+  "moustache": [
+    "moustache/moustache1.png",
+    "moustache/moustache2.png",
+    "moustache/moustache3.png",
+    "moustache/moustache4.png",
+    "moustache/moustache5.png",
+    "moustache/moustache6.png",
+    "moustache/moustache7.png",
+    "moustache/moustache8.png"
+  ]
+}

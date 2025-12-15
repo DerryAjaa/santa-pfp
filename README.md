@@ -18,7 +18,14 @@ Full-stack React + Express playground to mint a Santa-themed profile picture wit
    npm run dev
    ```
    - Vite client on http://localhost:5173 (proxied `/api` to the server)
-   - Express server on http://localhost:5001
+   - Express server on http://localhost:5002 (dev default)
+
+   If you want the server on 5001 instead:
+   ```powershell
+   $env:PORT=5001
+   $env:VITE_API_PORT=5001
+   npm run dev
+   ```
 
 ## Features
 - Snow animation overlay and Santa-styled UI with Google fonts.

@@ -55,6 +55,12 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Santa PFP server running on http://localhost:${PORT}`);
-});
+// Vercel (@vercel/node) runs this file as a Serverless Function.
+// In that environment we must NOT call `listen()`; we export the Express app.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Santa PFP server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
