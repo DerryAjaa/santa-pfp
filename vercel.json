@@ -19,6 +19,26 @@
       "dest": "/server/index.js"
     },
     {
+      "src": "/accessories\\.json",
+      "dest": "/client/accessories.json"
+    },
+    {
+      "src": "/(hat|beard|moustache)/(.*)",
+      "dest": "/client/$1/$2"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/client/assets/$1"
+    },
+    {
+      "src": "/favicon\\.svg",
+      "dest": "/client/favicon.svg"
+    },
+    {
+      "src": "/robots\\.txt",
+      "dest": "/client/robots.txt"
+    },
+    {
       "handle": "filesystem"
     },
     {
