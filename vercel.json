@@ -24,7 +24,6 @@
     }
   ],
   "env": {
-    "OPENAI_API_KEY": "@openai-api-key",
     "OPENAI_MODEL": "dall-e-3",
     "PORT": "5001"
   }
